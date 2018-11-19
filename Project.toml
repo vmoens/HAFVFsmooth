@@ -1,0 +1,6 @@
+authors = ["Vincent Moens <Vincent.Moens@aig.com>"]
+name = "HAFVFsmooth"
+uuid = "3bcab268-ec44-11e8-27d3-5f43bcc4df57"
+version = "0.1.0"
+
+[deps]
