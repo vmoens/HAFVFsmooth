@@ -1,6 +1,10 @@
-authors = ["Vincent Moens <Vincent.Moens@aig.com>"]
 name = "HAFVFsmooth"
 uuid = "3bcab268-ec44-11e8-27d3-5f43bcc4df57"
+authors = ["Vincent Moens <Vincent.Moens@aig.com>"]
 version = "0.1.0"
 
 [deps]
+DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
