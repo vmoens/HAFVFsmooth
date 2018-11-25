@@ -47,18 +47,20 @@ function make_updParams()
     function update_wb!(x,s,stm1,s0,lag=1)
         gam = s.γ
         
+        elbo.∇ELBO!(D, x, s::HAFVFunivariate, stm1::HAFVFunivariate, s0::HAFVFunivariate, lag)
         if gam != one(gam)
         	if lag == one(lag)
-                ∇ELBO_gam!(∇αβ, x, s, stm1, s0)
-                elbo   = ELBO_gam_compact(x, s, stm1, s0) 
+                elbo.∇ELBO_gam!(∇αβ, x, s, stm1, s0)
+                elbo   = elbo.ELBO_gam_compact(x, s, stm1, s0) 
         	else
         		error("Both lag and upper fixed decay not implemented yet")
         	end
         else
         	if lag == one(lag)
-                elbo   = ∇ELBO!(∇αβ, x, s, stm1, s0)
+                elbo   = elbo.∇ELBO!(∇αβ, x, s, stm1, s0)
         	else
-                ∇αβ = DiffResults.gradient(ForwardDiff.gradient!(Df,wb->ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
+                ∇αβ = DiffResults.gradient(
+                               ForwardDiff.gradient!(Df,wb->elbo.ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
         		elbo   = Df.value
         	end
         end
@@ -79,24 +81,6 @@ function make_updParams()
     function damp(w_tmp::BetaDistribution, w::BetaDistribution, c=0.9)
         return BetaDistribution((w_tmp.α ^ c) * (w.α ^ (1-c)),
                                 (w_tmp.β ^ c) * (w.β ^ (1-c)))
-
-    end
-    function update_z!(x,s,stm1,s0,lag=1)
-        μτ,κτ,ατ,βτ,ϕᵅτ,ϕᵝτ,βᵅτ,βᵝτ = get_params(s)
-        μτm1,κτm1,ατm1,βτm1,ϕᵅm1,ϕᵝm1,βᵅm1,βᵝm1 = get_params(stm1)
-        μ0,κ0,α0,β0,ϕᵅ0,ϕᵝ0,βᵅ0,βᵝ0 = get_params(s0)
-        
-        if lag == one(lag)
-        	Ea = Εα(ϕᵅτ,ϕᵝτ)
-        else
-        	Ea = Εα(ϕᵅτ,ϕᵝτ,lag)
-        end
-        κτ = Ea * κτm1 + (1-Ea) * κ0 + 1.0
-        ατ = Ea * ατm1 + (1-Ea) * α0 + 0.5
-        μτ = (Ea * κτm1 * μτm1 + (1-Ea) * κ0 * μ0 + x)/κτ
-        βτ = Ea * βτm1 + (1-Ea) * β0 + 0.5(Ea*κτm1*(μτm1-μτ)^2 + (1-Ea)*κ0*(μ0-μτ)^2 + (x-μτ)^2)
-        
-        s.z = NormalInverseGammaDistribution(μτ, κτ, ατ, βτ)
     end
     function updParams!(x,
                         s,stm1,s0,
@@ -109,9 +93,44 @@ function make_updParams()
         elbo += ELBOentropy(get_params(s)[1:end-1]...)
     end
 end
-
 updParams! = make_updParams()
 
+
+function update_z!(x,s::HAFVFunivariate,stm1::HAFVFunivariate,s0::HAFVFunivariate,lag=1)
+    μτ,κτ,ατ,βτ,ϕᵅτ,ϕᵝτ,βᵅτ,βᵝτ = get_params(s)
+    μτm1,κτm1,ατm1,βτm1,ϕᵅm1,ϕᵝm1,βᵅm1,βᵝm1 = get_params(stm1)
+    μ0,κ0,α0,β0,ϕᵅ0,ϕᵝ0,βᵅ0,βᵝ0 = get_params(s0)
+    
+    if lag == one(lag)
+    	Ea = Εα(ϕᵅτ,ϕᵝτ)
+    else
+    	Ea = Εα(ϕᵅτ,ϕᵝτ,lag)
+    end
+    κτ = Ea * κτm1 + (1-Ea) * κ0 + 1.0
+    ατ = Ea * ατm1 + (1-Ea) * α0 + 0.5
+    μτ = (Ea * κτm1 * μτm1 + (1-Ea) * κ0 * μ0 + x)/κτ
+    βτ = Ea * βτm1 + (1-Ea) * β0 + 0.5(Ea*κτm1*(μτm1-μτ)^2 + (1-Ea)*κ0*(μ0-μτ)^2 + (x-μτ)^2)
+    
+    s.z = NormalInverseGammaDistribution(μτ, κτ, ατ, βτ)
+end
+
+function update_z!(x,s::HAFVFmultivariate,stm1::HAFVFmultivariate,s0::HAFVFmultivariate,lag=1)
+    μτ,   κτ,   ητ,   Λτ,   ϕᵅτ,    ϕᵝτ,    βᵅτ,    βᵝτ = get_params(s)
+    μτm1, κτm1, ητm1, Λτm1, ϕᵅm1,   ϕᵝm1,   βᵅm1,   βᵝm1 = get_params(stm1)
+    μ0,   κ0,   η0,   Λ0,   ϕᵅ0,    ϕᵝ0,    βᵅ0,    βᵝ0 = get_params(s0)
+    
+    if lag == one(lag)
+    	Ea = Εα(ϕᵅτ,ϕᵝτ)
+    else
+    	Ea = Εα(ϕᵅτ,ϕᵝτ,lag)
+    end
+    κτ = Ea * κτm1 + (1-Ea) * κ0 + 1.0
+    ητ = Ea * ατm1 + (1-Ea) * α0 + 1.0
+    μτ = (Ea .* κτm1 .* μτm1 .+ (1-Ea) .* κ0 .* μ0 .+ x) ./ κτ
+    Λτ = Ea .* Λτm1 .+ (1-Ea) .* Λ0 .+ (Ea .* κτm1 .* (μτm1-μτ)*(μτm1-μτ)' .+ (1-Ea) .* κ0 .* (μ0-μτ)*(μ0-μτ)' .+ (x-μτ)*(x-μτ)')
+    
+    s.z = NormalInverseWishartDistribution(μτ, κτ, ατ, βτ)
+end
 
 # inverse covariance for beta
 @inbounds function iCovBeta!(Λ,ατ,βτ)
