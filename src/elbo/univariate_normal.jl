@@ -5,17 +5,17 @@ function ∇ELBO!(D, x, s::HAFVFunivariate, stm1::HAFVFunivariate, s0::HAFVFuniv
     gam = s0.γ
     if gam != one(gam)
     	if lag == one(lag)
-            elbo.∇ELBO_gam!(∇αβ, x, s, stm1, s0)
-            elbo   = elbo.ELBO_gam_compact(x, s, stm1, s0) 
+            ∇ELBO_gam!(D, x, s, stm1, s0)
+            elbo   = ELBO_gam_compact(x, s, stm1, s0) 
     	else
     		error("Both lag and upper fixed decay not implemented yet")
     	end
     else
     	if lag == one(lag)
-            elbo   = elbo.∇ELBO!(∇αβ, x, s, stm1, s0)
+            elbo   = ∇ELBO!(D, x, s, stm1, s0)
     	else
-            ∇αβ = DiffResults.gradient(
-                           ForwardDiff.gradient!(Df,wb->elbo.ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
+            D = DiffResults.gradient(
+                           ForwardDiff.gradient!(∇Elbo,wb->ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
     		elbo   = Df.value
     	end
     end
@@ -24,10 +24,17 @@ end
 
 
 function ELBO(x,s::HAFVFunivariate, stm1::HAFVFunivariate, s0::HAFVFunivariate, lag)
+    get_γ = (s0.γ != 1)
     if lag == one(lag)
-        return ELBO(x, get_params(s)[1:end-1]..., get_params(stm1)[1:end-1]..., get_params(s0)[1:end-1]...)
+        return ELBO(x, 
+                    get_params(s, get_γ)..., 
+                    get_params(stm1, get_γ)..., 
+                    get_params(s0, get_γ)...)
     else
-        return ELBO(x, get_params(s)[1:end-1]..., get_params(stm1)[1:end-1]..., get_params(s0)[1:end-1]..., lag)
+        return ELBO(x, 
+                    get_params(s, get_γ)..., 
+                    get_params(stm1, get_γ)..., 
+                    get_params(s0, get_γ)..., lag)
     end
 end
 function ELBO(x,

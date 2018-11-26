@@ -37,23 +37,6 @@ mutable struct HAFVFunivariate <: HAFVFtypes
 		    )
 	end
 end
-function get_params(s::T) where T<:HAFVFtypes
-    g = tuplejoin(get_params.(map(f->getfield(s, f),fieldnames(T)))...)
-    return g
-end
-function get_params(s)
-    return s
-end
-tuplejoin(t1::Tuple, t2::Tuple, t3...) = tuplejoin((t1..., t2...), t3...)
-tuplejoin(t1::Tuple, t2, t3...) = tuplejoin((t1..., t2), t3...)
-tuplejoin(t::Tuple) = t
-tuplejoin(x...) = x
-#function get_params(s::HAFVFunivariate)
-#    return getfield.(s.z,fieldnames(s.z))..., getfield.(s.w,fieldnames(s.w))..., getfield.(s.b,fieldnames(s.b))...
-#end
-#function get_wb(s::HAFVFunivariate)
-#    [getfield.(s.w,fieldnames(s.w))..., getfield.(s.b,fieldnames(s.b))...]
-#end
 mutable struct HAFVFmultivariate <: HAFVFtypes
 	z::NormalInverseWishartDistribution
 
@@ -63,10 +46,10 @@ mutable struct HAFVFmultivariate <: HAFVFtypes
 
 	γ::Real
 
-	function HAFVFunivariate(μ,κ,η,Λ,
+	function HAFVFmultivariate(μ,κ,η,Λ,
 				 ϕᵅ,ϕᵝ,
 				 βᵅ,βᵝ,
-				 γ=0.999)
+				 γ=1.0)
 
 		new(NormalInverseWishartDistribution(μ,κ,η,Λ),
 		    BetaDistribution(ϕᵅ,ϕᵝ),
@@ -75,3 +58,20 @@ mutable struct HAFVFmultivariate <: HAFVFtypes
 		    )
 	end
 end
+
+
+
+function get_params(s::T) where T<:HAFVFtypes
+    g = tuplejoin(get_params.(map(f->getfield(s, f),fieldnames(T)))...)
+    return g
+end
+function get_params(s::T, get_γ::Bool) where T<:Union{HAFVFmultivariate,HAFVFunivariate}
+    get_params(s)[1:end-1+get_γ]
+end
+function get_params(s)
+    return s
+end
+tuplejoin(t1::Tuple, t2::Tuple, t3...) = tuplejoin((t1..., t2...), t3...)
+tuplejoin(t1::Tuple, t2, t3...) = tuplejoin((t1..., t2), t3...)
+tuplejoin(t::Tuple) = t
+tuplejoin(x...) = x

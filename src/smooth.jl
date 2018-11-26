@@ -1,4 +1,7 @@
-function (s::HAFVFunivariate)(x)
+(s::HAFVFmultivariate)(x) = __smooth__(s,x)
+(s::HAFVFunivariate)(x) = __smooth__(s,x)
+
+function __smooth__(s,x)
     s0 = deepcopy(s)
     approx_post = [deepcopy(s)]
     elbo = zeros(size(x))
@@ -9,7 +12,7 @@ function (s::HAFVFunivariate)(x)
     return elbo, approx_post
 end
 
-function optimise(x, s::HAFVFunivariate, stm1::HAFVFunivariate, s0::HAFVFunivariate,gamma=0.999, lag=1)
+function optimise(x, s::HAFVFtypes, stm1::HAFVFtypes, s0::HAFVFtypes,gamma=0.999, lag=1)
     ELBOo = -Inf
 
     l = 8
@@ -47,23 +50,23 @@ function make_updParams()
     function update_wb!(x,s,stm1,s0,lag=1)
         gam = s.γ
         
-        elbo.∇ELBO!(D, x, s::HAFVFunivariate, stm1::HAFVFunivariate, s0::HAFVFunivariate, lag)
-        if gam != one(gam)
-        	if lag == one(lag)
-                elbo.∇ELBO_gam!(∇αβ, x, s, stm1, s0)
-                elbo   = elbo.ELBO_gam_compact(x, s, stm1, s0) 
-        	else
-        		error("Both lag and upper fixed decay not implemented yet")
-        	end
-        else
-        	if lag == one(lag)
-                elbo   = elbo.∇ELBO!(∇αβ, x, s, stm1, s0)
-        	else
-                ∇αβ = DiffResults.gradient(
-                               ForwardDiff.gradient!(Df,wb->elbo.ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
-        		elbo   = Df.value
-        	end
-        end
+        elbo = Elbo.∇ELBO!(∇αβ, x, s, stm1, s0, lag)
+        #if gam != one(gam)
+        #	if lag == one(lag)
+        #        Elbo.∇ELBO_gam!(∇αβ, x, s, stm1, s0)
+        #        elbo   = Elbo.ELBO_gam_compact(x, s, stm1, s0) 
+        #	else
+        #		error("Both lag and upper fixed decay not implemented yet")
+        #	end
+        #else
+        #	if lag == one(lag)
+        #        elbo   = Elbo.∇ELBO!(∇αβ, x, s, stm1, s0)
+        #	else
+        #        ∇αβ = DiffResults.gradient(
+        #                       ForwardDiff.gradient!(Df,wb->elbo.ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
+        #		elbo   = Df.value
+        #	end
+        #end
         
         w = s.w
         b = s.b
@@ -90,7 +93,7 @@ function make_updParams()
 
         update_z!(x,s,stm1,s0,lag)
         
-        elbo += ELBOentropy(get_params(s)[1:end-1]...)
+        elbo += ELBOentropy(s)
     end
 end
 updParams! = make_updParams()
@@ -125,11 +128,11 @@ function update_z!(x,s::HAFVFmultivariate,stm1::HAFVFmultivariate,s0::HAFVFmulti
     	Ea = Εα(ϕᵅτ,ϕᵝτ,lag)
     end
     κτ = Ea * κτm1 + (1-Ea) * κ0 + 1.0
-    ητ = Ea * ατm1 + (1-Ea) * α0 + 1.0
+    ητ = Ea * ητm1 + (1-Ea) * η0 + 1.0
     μτ = (Ea .* κτm1 .* μτm1 .+ (1-Ea) .* κ0 .* μ0 .+ x) ./ κτ
     Λτ = Ea .* Λτm1 .+ (1-Ea) .* Λ0 .+ (Ea .* κτm1 .* (μτm1-μτ)*(μτm1-μτ)' .+ (1-Ea) .* κ0 .* (μ0-μτ)*(μ0-μτ)' .+ (x-μτ)*(x-μτ)')
     
-    s.z = NormalInverseWishartDistribution(μτ, κτ, ατ, βτ)
+    s.z = NormalInverseWishartDistribution(μτ, κτ, ητ, Λτ)
 end
 
 # inverse covariance for beta
@@ -167,6 +170,3 @@ end
 
 
 
-function (s::HAFVFmultivariate)(x)
-
-end

@@ -10,8 +10,10 @@ lbeta(a,b)-(a-1.0)*digamma(a)-(b-1.0)*digamma(b)+(a+b-2.0)*digamma(a+b)
 end
 
 
-function ELBOentropy(μτ,κτ,ατ,βτ,αᵅ,βᵅ,αᵝ,βᵝ)
-        L = LB_nigentropy(μτ,κτ,ατ,βτ)
-        L += LB_betaentropy(αᵅ,βᵅ)
-        L += LB_betaentropy(αᵝ,βᵝ)
+function ELBOentropy(s)
+    L = LB_nigentropy(get_params(s.z)...)
+        L += LB_betaentropy(get_params(s.w)...)
+        L += LB_betaentropy(get_params(s.b)...)
 end
+
+entropy(InverseWishart(η,Λ))+.5(ElogIW(Λ,η)-n*log(κ))+entropy(Dirichlet(α))
