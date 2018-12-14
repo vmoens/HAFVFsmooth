@@ -150,10 +150,14 @@ function Aniw(n1,n2,n3,n4)
 		    p * logn4-v*logdetn2n3n4+
 		    2logmvgamma(p,v/2))
 end
-∇₂Aniw_Eb!(H,Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2) = ForwardDiff.hessian!(H,
-             Eb->Aniw(Eb[1]*μ1+(1-Eb[1])*μ2,Eb[1]*κ1+(1-Eb[1])*κ2,Eb[1]*η1+(1-Eb[1])*η2,Eb[1]*Λ1+(1-Eb[1])*Λ2),
+function ∇₂Aniw_Eb!(H,Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2)
+    F = Eb->Aniw(Eb[1]*μ1+(1-Eb[1])*μ2,Eb[1]*κ1+(1-Eb[1])*κ2,Eb[1]*η1+(1-Eb[1])*η2,Eb[1]*Λ1+(1-Eb[1])*Λ2)
+    @show Eb
+    @show H
+    ForwardDiff.hessian!(H,F,
              [Eb])
-@generated function F_hessAniw(Eb::T,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2) where T
+end
+@generated function F_hessAniw(Eb::T,μ1::A,κ1::B,η1::C,Λ1::D,μ2::E,κ2::F,η2::G,Λ2::J) where {T,A,B,C,D,E,F,G,J}
     quote
         H = $(DiffResults.HessianResult([one(T)]))
         ∇₂Aniw_Eb!(H,Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2)
