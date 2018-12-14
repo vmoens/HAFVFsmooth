@@ -1,5 +1,5 @@
 module Elbo
-using DiffResults, SpecialFunctions, ForwardDiff, StatsFuns, LinearAlgebra, Distributions
+using DiffResults, SpecialFunctions, ForwardDiff, StatsFuns, LinearAlgebra, Distributions, Flux
 import ..HAFVFunivariate
 import ..HAFVFmultivariate
 import ..get_params

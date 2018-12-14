@@ -21,10 +21,14 @@ function ELBOentropy(s::HAFVFmultivariate)
     L += LB_betaentropy(get_params(s.b)...)
 end
 function LB_niwentropy(μ,κ,η,Λ)
-    entropy(InverseWishart(η,Λ))+.5(ElogIW(Λ,η)-n*log(κ))
+    n = size(μ,1)
+    entropy_InverseWishart(Λ,η)+.5(ElogIW(Λ,η)-n*log(κ))
 end
-function entropy(A::Distributions.InverseWishart) # gupta 2013
-	p = size(A.Ψ,1)
-	return StatsFuns.logmvgamma(p,A.df/2) + p*A.df/2 + (p+1)/2 * logdet(A.Ψ/2) - (p+A.df+1)/2 * logmvdigamma(p,A.df)
+function entropy_InverseWishart(Ψ, df) #A::Distributions.InverseWishart) # gupta 2013
+	p = size(Ψ,1)
+	return StatsFuns.logmvgamma(p,df/2) + p*df/2 + (p+1)/2 * logdet(Ψ/2) - (p+df+1)/2 * logmvdigamma(p,df)
+end
+function logmvdigamma(d::Int64,q)
+	sum(i->digamma((q-d+i)/2),1:d)
 end
 

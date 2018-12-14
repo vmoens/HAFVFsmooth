@@ -1,5 +1,6 @@
 module HAFVFsmooth
-using DiffResults, ForwardDiff, StatsFuns, SpecialFunctions, Distributions
+using DiffResults, ForwardDiff, StatsFuns, SpecialFunctions, Distributions, Flux
+using Flux: Tracker
 export HAFVFunivariate, HAFVFmultivariate
 include("types.jl")
 

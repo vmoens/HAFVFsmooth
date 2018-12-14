@@ -51,22 +51,6 @@ function make_updParams()
         gam = s.γ
         
         elbo = Elbo.∇ELBO!(∇αβ, x, s, stm1, s0, lag)
-        #if gam != one(gam)
-        #	if lag == one(lag)
-        #        Elbo.∇ELBO_gam!(∇αβ, x, s, stm1, s0)
-        #        elbo   = Elbo.ELBO_gam_compact(x, s, stm1, s0) 
-        #	else
-        #		error("Both lag and upper fixed decay not implemented yet")
-        #	end
-        #else
-        #	if lag == one(lag)
-        #        elbo   = Elbo.∇ELBO!(∇αβ, x, s, stm1, s0)
-        #	else
-        #        ∇αβ = DiffResults.gradient(
-        #                       ForwardDiff.gradient!(Df,wb->elbo.ELBO(x, s, stm1, s0, wb=wb), get_wb(s)))
-        #		elbo   = Df.value
-        #	end
-        #end
         
         w = s.w
         b = s.b

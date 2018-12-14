@@ -1,9 +1,16 @@
-function ∇ELBO!(D, x, s::HAFVFmultivariate, stm1::HAFVFmultivariate, s0::HAFVFmultivariate, lag = 1)
+
+function ∇ELBO!(D, x, s::HAFVFmultivariate{:ForwardDiff}, stm1::HAFVFmultivariate{:ForwardDiff}, s0::HAFVFmultivariate{:ForwardDiff}, lag = 1)
     @assert s0.γ == one(s0.γ)
-    out = ∇ELBOniw!(x, 
+    out = ∇ELBOniw_forwarddiff!(x, 
                     get_params(s,        (s0.γ != 1))..., 
                     get_params(stm1,     (s0.γ != 1))..., 
                     get_params(s0,       (s0.γ != 1))..., lag)
+    D .= out[2]
+    out[1]
+end
+function ∇ELBO!(D, x, s::HAFVFmultivariate{:Flux}, stm1::HAFVFmultivariate{:Flux}, s0::HAFVFmultivariate{:Flux}, lag = 1)
+    @assert s0.γ == one(s0.γ)
+    out = ∇ELBOniw_flux!(x, s, stm1, s0, lag)
     D .= out[2]
     out[1]
 end
@@ -11,7 +18,6 @@ end
 
 
 ∇Elbo = DiffResults.GradientResult(zeros(4))
-
 function make_∇ELBOniw()
     F(x,μ, κ, η, Λ,
         μ1,κ1,η1,Λ1,αᵅ1,βᵅ1,αᵝ1,βᵝ1,
@@ -27,8 +33,17 @@ function make_∇ELBOniw()
               ∇Elbo.value, ∇Elbo.derivs[1]
     end
 end
-∇ELBOniw! = make_∇ELBOniw()
+∇ELBOniw_forwarddiff! = make_∇ELBOniw()
 
+function ∇ELBOniw_flux!(x, s, stm1, s0, lag)
+    @assert lag == 1
+    d = param([get_params(s.w)...;get_params(s.b)...])
+    L = ELBOniw(x, get_params(s.z)..., d...,
+                get_params(stm1,     (s0.γ != 1))...,
+                get_params(s0,       (s0.γ != 1))...)
+    Tracker.back!(L)
+    return L.data, d.grad
+end
 
 function ELBOniw(r::AbstractArray{T,1},
 		 μ, κ, η, Λ, αᵅ, βᵅ, αᵝ, βᵝ,
@@ -59,6 +74,14 @@ function ELBOniw(r::AbstractArray{T,1},
         L   
 end
 
+function natural_param_NIW(μ,κ,η,Λ)
+p = length(μ)
+n1a = (0.5 * (-2-p-η))
+n2a = -κ * (μ*μ')/2 - Λ/2
+n3a = κ*μ
+n4a = -κ/2
+return n1a,n2a,n3a,n4a
+end
 function LogPartition_NIW(aa,ba,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2,t)
         # Log partition function and Taylor series
 	if t==one(t)
@@ -70,10 +93,11 @@ function LogPartition_NIW(aa,ba,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2,t)
 		Ebm1=1.0-Eb
 	end
 	p=length(μ1)
-        n1a,n1b = (v->(1/2 * (-2-p-v))).([η1;η2])
-        n2a,n2b = ((m,k,Λ)->-k * (m*m')/2 - Λ/2).([μ1,μ2],[κ1,κ2],[Λ1,Λ2])
-        n3a,n3b = ((m,k)->k*m).([μ1,μ2],[κ1,κ2])
-        n4a,n4b = -[κ1,κ2]/2
+    (n1a,n2a,n3a,n4a),(n1b,n2b,n3b,n4b) = map(natural_param_NIW,[μ1,μ2],[κ1,κ2],[η1;η2],[Λ1,Λ2])
+#        n1a,n1b = (v->(1/2 * (-2-p-v))).([η1;η2])
+#        n2a,n2b = ((m,k,Λ)->-k * (m*m')/2 - Λ/2).([μ1,μ2],[κ1,κ2],[Λ1,Λ2])
+#        n3a,n3b = ((m,k)->k*m).([μ1,μ2],[κ1,κ2])
+#        n4a,n4b = -[κ1,κ2]/2
 
         lb = -Eb * Aniw(n1a,n2a,n3a,n4a) -
                         (1-Eb)*Aniw(n1b,n2b,n3b,n4b)
@@ -116,23 +140,25 @@ function logmvdigamma(d::Int64,q)
 	sum(i->digamma((q-d+i)/2),1:d)
 end
 function Aniw(n1,n2,n3,n4)
-        p = length(n3)
+    p = length(n3)
 	v = -2n1-p-2
 	k = -2n4
 	logn4 = log(k)
-	logdetn2n3n4=logdet(-2n2 + n3*n3' /(2n4))
+	logdetn2n3n4 = logdet(-2n2 + n3*n3' / (2n4))
         return .5(v * p * log(2)+
-	  	log2π*p-
-		p * logn4-v*logdetn2n3n4+
-		2logmvgamma(p,v/2))
+	  	    log2π*p-
+		    p * logn4-v*logdetn2n3n4+
+		    2logmvgamma(p,v/2))
 end
-function F_hessAniw(Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2)
-        H = DiffResults.HessianResult([Eb])
-        ForwardDiff.hessian!(H,Eb₀->begin
-                                     Eb=Eb₀[1]
-                                     Aniw(Eb*μ1+(1-Eb)*μ2,Eb*κ1+(1-Eb)*κ2,Eb*η1+(1-Eb)*η2,Eb*Λ1+(1-Eb)*Λ2)
-                             end,[Eb])
+∇₂Aniw_Eb!(H,Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2) = ForwardDiff.hessian!(H,
+             Eb->Aniw(Eb[1]*μ1+(1-Eb[1])*μ2,Eb[1]*κ1+(1-Eb[1])*κ2,Eb[1]*η1+(1-Eb[1])*η2,Eb[1]*Λ1+(1-Eb[1])*Λ2),
+             [Eb])
+@generated function F_hessAniw(Eb::T,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2) where T
+    quote
+        H = $(DiffResults.HessianResult([one(T)]))
+        ∇₂Aniw_Eb!(H,Eb,μ1,κ1,η1,Λ1,μ2,κ2,η2,Λ2)
         return DiffResults.value(H),DiffResults.hessian(H)[1]
+    end
 end
 function Tayl(Eb,Vb,δ::Array{T,1}...) where T
 Δ = sum(Eb.*[δ...])

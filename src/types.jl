@@ -37,7 +37,7 @@ mutable struct HAFVFunivariate <: HAFVFtypes
 		    )
 	end
 end
-mutable struct HAFVFmultivariate <: HAFVFtypes
+mutable struct HAFVFmultivariate{backend} <: HAFVFtypes where backend
 	z::NormalInverseWishartDistribution
 
 	w::BetaDistribution
@@ -46,16 +46,17 @@ mutable struct HAFVFmultivariate <: HAFVFtypes
 
 	γ::Real
 
-	function HAFVFmultivariate(μ,κ,η,Λ,
+    function HAFVFmultivariate(μ,κ,η,Λ,
 				 ϕᵅ,ϕᵝ,
 				 βᵅ,βᵝ,
-				 γ=1.0)
+                 γ=1.0,
+                backend=:ForwardDiff)
 
-		new(NormalInverseWishartDistribution(μ,κ,η,Λ),
+        new{backend}(
+            NormalInverseWishartDistribution(μ,κ,η,Λ),
 		    BetaDistribution(ϕᵅ,ϕᵝ),
 		    BetaDistribution(βᵅ,βᵝ),
-		    γ
-		    )
+            γ)
 	end
 end
 
