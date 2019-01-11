@@ -1,3 +1,4 @@
+include("smooth_setting.jl")
 (s::HAFVFmultivariate)(x) = __smooth__(s,x)
 (s::HAFVFunivariate)(x) = __smooth__(s,x)
 
@@ -25,8 +26,8 @@ function optimise(x, s::HAFVFtypes, stm1::HAFVFtypes, s0::HAFVFtypes,gamma=0.999
         ELBOn = ELBO
         dE = (ELBOn-ELBOo)/ELBOo
         ELBOo = ELBOn
-        if abs(dE)<1e-8 || i>=1000
-            if i==1000 && abs(dE)>1e-2
+        if abs(dE)<THRESHOLD || i>=1000
+            if i==ITERATION_FAILURE && abs(dE)>1e-2
                 print("failed\t")
                 ELBO-=1000.0
             end
@@ -59,13 +60,13 @@ function make_updParams()
         iCovBeta!(Λ, get_params(b)...)
         b_tmp = BetaDistribution( (Λ*∇αβ[3:4] .+ 1)... )
         
-        c = 0.3
+        c = DAMP_RATIO
         s.w = damp(w_tmp, w, c)
         s.b = damp(b_tmp, b, c)
 
         elbo
     end
-    function damp(w_tmp::BetaDistribution, w::BetaDistribution, c=0.9)
+    function damp(w_tmp::BetaDistribution, w::BetaDistribution, c=DAMP_RATIO)
         return BetaDistribution((w_tmp.α ^ c) * (w.α ^ (1-c)),
                                 (w_tmp.β ^ c) * (w.β ^ (1-c)))
     end

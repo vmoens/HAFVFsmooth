@@ -29,4 +29,3 @@ for op in (:+,:-)
 					a.η4+b.η4)
 end
 end
-
