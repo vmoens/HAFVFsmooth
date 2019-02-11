@@ -1,16 +1,24 @@
-include("smooth_setting.jl")
-(s::HAFVFmultivariate)(x) = __smooth__(s,x)
-(s::HAFVFunivariate)(x) = __smooth__(s,x)
+include("smooth_settings.jl")
+(s::HAFVFmultivariate)(x;ForwardBackward=false) = __smooth__(s,x,ForwardBackward)
+(s::HAFVFunivariate)(x;ForwardBackward=false) = __smooth__(s,x,ForwardBackward)
 
-function __smooth__(s,x)
-    s0 = deepcopy(s)
-    approx_post = [deepcopy(s)]
-    elbo = zeros(size(x))
-    for (i,x) in enumerate(x)
-        elbo[i] = optimise(x, s, approx_post[end], s0)
-	    push!(approx_post,deepcopy(s))
+
+function __smooth__(s,x,ForwardBackward)
+    if ForwardBackward
+        elbo1, ap1 = __smooth__(s,x,false)
+	elbo2, ap2 = __smooth__(s,reverse(x),false)
+	apz = map((ap1,ap2,x)->ap1.z + ap2.z - base(natural(s.z,x)),ap1,ap2,x)
+	return elbo1 .+ elbo2 , apz, ap1, ap2
+    else
+        s0 = deepcopy(s)
+        approx_post = [deepcopy(s)]
+        elbo = zeros(size(x))
+        for (i,x) in enumerate(x)
+            elbo[i] = optimise(x, s, approx_post[end], s0)
+                push!(approx_post,deepcopy(s))
+        end
+        return elbo, approx_post
     end
-    return elbo, approx_post
 end
 
 function optimise(x, s::HAFVFtypes, stm1::HAFVFtypes, s0::HAFVFtypes,gamma=0.999, lag=1)
